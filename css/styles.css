@@ -749,13 +749,72 @@ body {
   flex-direction: column;
   padding: 1.5rem 1rem;
   flex-shrink: 0;
+  transition: margin-left 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, width 0.28s ease;
+  z-index: 100;
+}
+
+.sidebar.collapsed {
+  margin-left: -260px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-toggle-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  margin-left: auto;
+}
+
+.sidebar-toggle-btn:hover {
+  background: rgba(217, 107, 67, 0.12);
+  color: var(--terracota-light);
+  border-color: rgba(217, 107, 67, 0.3);
+}
+
+.sidebar-expand-tab-btn {
+  position: fixed;
+  top: 1.15rem;
+  left: 0;
+  z-index: 999;
+  background: var(--bg-sidebar, #0b0f1c);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--terracota);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--text-primary);
+  padding: 0.5rem 0.85rem 0.5rem 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  box-shadow: 2px 4px 16px rgba(0, 0, 0, 0.5);
+  transition: all 0.2s ease;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.sidebar-expand-tab-btn:hover {
+  background: #181d2f;
+  color: var(--terracota-light);
+  border-color: var(--terracota);
+  box-shadow: 4px 6px 20px rgba(217, 107, 67, 0.25);
+  transform: translateX(2px);
 }
 
 .sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0 0.5rem 1.25rem 0.5rem;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0 0.25rem 1.25rem 0.25rem;
 }
 
 .sidebar-trial-pill {
@@ -1189,6 +1248,61 @@ body {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   COMBOBOX PERSONALIZADO: BUSCADOR EN TIEMPO REAL & SCROLL (MÁX. 4 OPCIONES)
+   ========================================================================== */
+.custom-combobox-wrap {
+  position: relative;
+  flex: 1;
+}
+
+.custom-combobox-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 180px; /* Exactamente 4 opciones visibles (4 x ~45px) */
+  overflow-y: auto;
+  background: var(--bg-card, #121624);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 6px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  z-index: 1050;
+}
+
+.custom-combobox-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-combobox-dropdown::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.custom-combobox-dropdown::-webkit-scrollbar-thumb {
+  background: var(--terracota);
+  border-radius: 4px;
+}
+
+.custom-combobox-dropdown::-webkit-scrollbar-thumb:hover {
+  background: var(--terracota-light);
+}
+
+.apu-resource-option-item {
+  min-height: 44px;
+  padding: 0.6rem 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background 0.15s ease;
+}
+
+.apu-resource-option-item:last-child {
+  border-bottom: none;
 }
 
 /* ==========================================================================

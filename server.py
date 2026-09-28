@@ -21,7 +21,7 @@ DEFAULT_UNITS = [
     ("Kg", "Kilogramo", "Peso"),
     ("Und", "Unidad", "Conteo"),
     ("Hr", "Hora", "Tiempo"),
-    ("Jr", "Jornal", "Mano de obra"),
+    ("jr", "Jornal", "Mano de obra"),
     ("Glb", "Global", "Global"),
     ("Gal", "Galón", "Volumen líquido"),
     ("Lt", "Litro", "Volumen líquido"),
@@ -360,14 +360,14 @@ def init_db():
         cursor.execute("SELECT COUNT(*) FROM resources WHERE company_id = ?", (cid,))
         if cursor.fetchone()[0] == 0:
             sample_resources = [
-                ('MAT-001', 'Cemento Gris Uso General (50kg)', 'Materiales', 'sac', 32000.0, 19.0, 38080.0, 'A'),
+                ('MAT-001', 'Cemento Gris Uso General (50kg)', 'Materiales', 'bto', 32000.0, 19.0, 38080.0, 'A'),
                 ('MAT-002', 'Arena de Peña Lavada', 'Materiales', 'm³', 75000.0, 0.0, 75000.0, 'A'),
                 ('MAT-003', 'Grava Triturada 3/4', 'Materiales', 'm³', 85000.0, 0.0, 85000.0, 'A'),
                 ('MAT-004', 'Acero Corrugado Figurado 60000 PSI', 'Materiales', 'kg', 4600.0, 19.0, 5474.0, 'A'),
                 ('EQP-001', 'Mezcladora de Concreto 2 Bultos Trompo', 'Equipos', 'hr', 22000.0, 19.0, 26180.0, 'B'),
                 ('EQP-002', 'Vibrador de Concreto a Gasolina 4HP', 'Equipos', 'hr', 18000.0, 19.0, 21420.0, 'A'),
-                ('PER-001', 'Cuadrilla 1 Oficial + 1 Ayudante', 'Personal', 'jor', 160000.0, 0.0, 160000.0, 'B'),
-                ('PER-002', 'Cuadrilla Fierrero Armador', 'Personal', 'jor', 175000.0, 0.0, 175000.0, 'B'),
+                ('PER-001', 'Cuadrilla 1 Oficial + 1 Ayudante', 'Personal', 'jr', 160000.0, 0.0, 160000.0, 'B'),
+                ('PER-002', 'Cuadrilla Fierrero Armador', 'Personal', 'jr', 175000.0, 0.0, 175000.0, 'B'),
                 ('ACT-001', 'Prueba y Ensayo de Compresión de Cilindros', 'Actividades', 'un', 42000.0, 19.0, 49980.0, 'A'),
                 ('ACT-002', 'Retiro de Escombros y Disposición Final Certificada', 'Actividades', 'm³', 58000.0, 0.0, 58000.0, 'A')
             ]

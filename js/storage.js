@@ -23,8 +23,8 @@ const DEFAULT_MEASUREMENT_UNITS = [
   { id: 'u8', codigo: 'hr', nombre: 'Hora (MO/Equipo)', categoria: 'Tiempo', editable: true },
   { id: 'u9', codigo: 'mes', nombre: 'Mes', categoria: 'Tiempo', editable: true },
   { id: 'u10', codigo: 'pza', nombre: 'Pieza', categoria: 'Conteo', editable: true },
-  { id: 'u11', codigo: 'sac', nombre: 'Saco / Bulto (50kg)', categoria: 'Empaque', editable: true },
-  { id: 'u12', codigo: 'jor', nombre: 'Jornal', categoria: 'Mano de obra', editable: true }
+  { id: 'u11', codigo: 'bto', nombre: 'Bulto (50kg)', categoria: 'Empaque', editable: true },
+  { id: 'u12', codigo: 'jr',  nombre: 'Jornal',       categoria: 'Mano de obra', editable: true }
 ];
 
 // Empresas de demostración iniciales

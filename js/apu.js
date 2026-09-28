@@ -89,16 +89,85 @@ function populateApuUnitSelects() {
 }
 
 function populateResourcePickerDropdown() {
-  const select = document.getElementById('apu-resource-picker');
-  if (!select) return;
-  select.innerHTML = '<option value="">Buscar recurso por código o nombre...</option>';
-  availableResourcesForApu.forEach(r => {
-    // 6.5 Restricción: Los recursos de tipo 'Actividad a todo costo' se vinculan como cualquier recurso.
-    // Un APU no contiene a otro APU.
-    select.innerHTML += `
-      <option value="${r.id}">[${r.codigo}] ${r.nombre} (${r.tipo} - $${formatMoney(r.precioTotal)} / ${r.unidad})</option>
-    `;
+  renderResourcePickerOptions('');
+}
+
+function renderResourcePickerOptions(filterText = '') {
+  const dropdownList = document.getElementById('apu-resource-dropdown-list');
+  const hiddenInput = document.getElementById('apu-resource-picker');
+  const searchInput = document.getElementById('apu-resource-search-input');
+  if (!dropdownList) return;
+
+  const query = (filterText || '').toLowerCase().trim();
+  const filtered = availableResourcesForApu.filter(r => {
+    if (!query) return true;
+    return (r.codigo && r.codigo.toLowerCase().includes(query)) ||
+           (r.nombre && r.nombre.toLowerCase().includes(query)) ||
+           (r.tipo && r.tipo.toLowerCase().includes(query));
   });
+
+  if (filtered.length === 0) {
+    dropdownList.innerHTML = `
+      <div style="padding: 0.85rem; text-align: center; color: var(--text-muted); font-size: 0.8rem;">
+        No se encontraron recursos que coincidan con "${escapeHtml(filterText)}"
+      </div>
+    `;
+    return;
+  }
+
+  dropdownList.innerHTML = filtered.map(r => {
+    const isSelected = hiddenInput && hiddenInput.value == r.id;
+    return `
+      <div class="apu-resource-option-item" data-id="${r.id}" style="background: ${isSelected ? 'rgba(217, 107, 67, 0.2)' : 'transparent'};">
+        <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">
+          <strong style="color: var(--terracota-light); font-size: 0.78rem; margin-right: 0.35rem;">[${escapeHtml(r.codigo)}]</strong>
+          <span style="color: var(--text-primary); font-size: 0.82rem;">${escapeHtml(r.nombre)}</span>
+        </div>
+        <div style="font-size: 0.74rem; color: var(--text-muted); white-space: nowrap; margin-left: 0.5rem;">
+          <span>${escapeHtml(r.tipo)}</span> • <strong style="color: var(--terracota-light);">$${formatMoney(r.precioTotal)}</strong> / ${escapeHtml(r.unidad)}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  dropdownList.querySelectorAll('.apu-resource-option-item').forEach(item => {
+    item.addEventListener('mouseenter', () => {
+      item.style.background = 'rgba(217, 107, 67, 0.14)';
+    });
+    item.addEventListener('mouseleave', () => {
+      const isSelected = hiddenInput && hiddenInput.value == item.getAttribute('data-id');
+      item.style.background = isSelected ? 'rgba(217, 107, 67, 0.2)' : 'transparent';
+    });
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const rId = parseInt(item.getAttribute('data-id'));
+      const rec = availableResourcesForApu.find(r => r.id === rId);
+      if (rec) {
+        if (hiddenInput) hiddenInput.value = rec.id;
+        if (searchInput) searchInput.value = `[${rec.codigo}] ${rec.nombre} (${rec.tipo} - $${formatMoney(rec.precioTotal)} / ${rec.unidad})`;
+      }
+      closeResourcePickerDropdown();
+    });
+  });
+}
+
+function closeResourcePickerDropdown() {
+  const dropdownList = document.getElementById('apu-resource-dropdown-list');
+  const dropdownArrow = document.getElementById('apu-resource-dropdown-arrow');
+  if (dropdownList) dropdownList.style.display = 'none';
+  if (dropdownArrow) dropdownArrow.style.transform = 'rotate(0deg)';
+}
+
+function openResourcePickerDropdown() {
+  const dropdownList = document.getElementById('apu-resource-dropdown-list');
+  const dropdownArrow = document.getElementById('apu-resource-dropdown-arrow');
+  const searchInput = document.getElementById('apu-resource-search-input');
+  if (!dropdownList) return;
+
+  const currentVal = searchInput ? searchInput.value : '';
+  renderResourcePickerOptions(currentVal.startsWith('[') ? '' : currentVal);
+  dropdownList.style.display = 'block';
+  if (dropdownArrow) dropdownArrow.style.transform = 'rotate(180deg)';
 }
 
 // ----------------------------------------------------------------------------
@@ -225,6 +294,26 @@ function setupApuEvents() {
     btnAddResource.addEventListener('click', addSelectedResourceToApu);
   }
 
+  // Buscador y desplegable del selector de recursos (Combobox desplegable hacia abajo)
+  const searchResourceInput = document.getElementById('apu-resource-search-input');
+  if (searchResourceInput) {
+    searchResourceInput.addEventListener('focus', openResourcePickerDropdown);
+    searchResourceInput.addEventListener('click', openResourcePickerDropdown);
+    searchResourceInput.addEventListener('input', (e) => {
+      const hiddenInput = document.getElementById('apu-resource-picker');
+      if (hiddenInput) hiddenInput.value = '';
+      openResourcePickerDropdown();
+    });
+  }
+
+  // Cerrar combobox al hacer clic fuera
+  document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('apu-resource-combobox-wrap');
+    if (wrap && !wrap.contains(e.target)) {
+      closeResourcePickerDropdown();
+    }
+  });
+
   // Acceso directo: Crear recurso al vuelo (6.2)
   const btnCreateResourceOnTheFly = document.getElementById('btn-create-resource-on-the-fly');
   if (btnCreateResourceOnTheFly) {
@@ -303,6 +392,13 @@ async function openApuModal(apuId = null, mode = 'create') {
     unitSelect.value = '';
   }
 
+  populateResourcePickerDropdown();
+  const hiddenInput = document.getElementById('apu-resource-picker');
+  const searchInput = document.getElementById('apu-resource-search-input');
+  if (hiddenInput) hiddenInput.value = '';
+  if (searchInput) searchInput.value = '';
+  closeResourcePickerDropdown();
+
   applyApuModalMode();
   renderApuLinesTable();
   modal.style.display = 'flex';
@@ -365,15 +461,25 @@ function closeApuModal() {
 
 // Agregar recurso seleccionado a la tabla de composición
 function addSelectedResourceToApu() {
-  const select = document.getElementById('apu-resource-picker');
-  const resourceId = parseInt(select.value);
-  if (!resourceId) return;
+  const hiddenInput = document.getElementById('apu-resource-picker');
+  const searchInput = document.getElementById('apu-resource-search-input');
+  const resourceId = parseInt(hiddenInput ? hiddenInput.value : '');
+  if (!resourceId) {
+    alert('Por favor seleccione un recurso de la lista para vincularlo al APU.');
+    if (searchInput) {
+      searchInput.focus();
+      openResourcePickerDropdown();
+    }
+    return;
+  }
 
   const resource = availableResourcesForApu.find(r => r.id === resourceId);
   if (!resource) return;
 
   addResourceLineToApu(resource);
-  select.value = '';
+  if (hiddenInput) hiddenInput.value = '';
+  if (searchInput) searchInput.value = '';
+  closeResourcePickerDropdown();
 }
 
 function addResourceLineToApu(resource) {
@@ -719,3 +825,15 @@ window.closeApuDeleteBlockedDialog = closeApuDeleteBlockedDialog;
 window.toggleApuActiveStatus = toggleApuActiveStatus;
 window.updateApuLineValue = updateApuLineValue;
 window.removeApuLine = removeApuLine;
+
+if (typeof window.escapeHtml !== 'function') {
+  window.escapeHtml = function(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+}
