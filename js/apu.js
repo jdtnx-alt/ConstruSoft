@@ -170,6 +170,24 @@ function openResourcePickerDropdown() {
   if (dropdownArrow) dropdownArrow.style.transform = 'rotate(180deg)';
 }
 
+// Seleccionar estructura del APU (WBS/EDT o Ítems de Actividades)
+function selectApuStructure(type) {
+  const hiddenInput = document.getElementById('modal-apu-estructura');
+  const btnWbs = document.getElementById('opt-struct-wbs');
+  const btnItems = document.getElementById('opt-struct-items');
+  if (hiddenInput) hiddenInput.value = type;
+  if (btnWbs) {
+    btnWbs.classList.toggle('selected', type === 'wbs');
+    btnWbs.setAttribute('aria-pressed', String(type === 'wbs'));
+  }
+  if (btnItems) {
+    btnItems.classList.toggle('selected', type === 'items');
+    btnItems.setAttribute('aria-pressed', String(type === 'items'));
+  }
+  renderApuLinesTable();
+}
+window.selectApuStructure = selectApuStructure;
+
 // ----------------------------------------------------------------------------
 // 6.1 VISTA MAESTRA: TABLA Y FILTROS EN TIEMPO REAL
 // ----------------------------------------------------------------------------
@@ -218,8 +236,12 @@ function renderApusTable() {
       ? `<small style="display:block; color:var(--terracota-light); font-size:0.72rem; margin-top:0.2rem;">En ${a.numPresupuestos} presupuesto(s)</small>`
       : '';
 
+    const structBadge = (a.estructura === 'items')
+      ? `<span class="badge-structure badge-items" style="margin-left:0.35rem;" title="Estructura por Ítems de Actividades">ÍTEMS</span>`
+      : `<span class="badge-structure badge-wbs" style="margin-left:0.35rem;" title="Estructura WBS / EDT">WBS</span>`;
+
     tr.innerHTML = `
-      <td><span class="res-code-badge" style="cursor:pointer;" onclick="openApuModal(${a.id}, 'view')">${a.codigo}</span></td>
+      <td><span class="res-code-badge" style="cursor:pointer;" onclick="openApuModal(${a.id}, 'view')">${a.codigo}</span>${structBadge}</td>
       <td>
         <div style="font-weight:600; color:var(--text-primary); cursor:pointer;" onclick="openApuModal(${a.id}, 'view')">
           ${a.nombre}
@@ -369,6 +391,7 @@ async function openApuModal(apuId = null, mode = 'create') {
         codeField.value = data.apu.codigo;
         nameInput.value = data.apu.nombre;
         unitSelect.value = data.apu.unidad;
+        selectApuStructure(data.apu.estructura || 'wbs');
         currentApuLines = (data.apu.lines || []).map(l => ({
           resourceId: l.resourceId,
           codigo: l.codigo,
@@ -390,6 +413,7 @@ async function openApuModal(apuId = null, mode = 'create') {
     codeField.value = 'Generado automáticamente por servidor';
     nameInput.value = '';
     unitSelect.value = '';
+    selectApuStructure('wbs');
   }
 
   populateResourcePickerDropdown();
@@ -412,6 +436,7 @@ function applyApuModalMode() {
   const editModeBtn = document.getElementById('btn-apu-switch-to-edit');
   const saveBtn = document.getElementById('btn-apu-save-submit');
   const resourcePickerBox = document.getElementById('apu-resource-picker-box');
+  const structureBox = document.getElementById('modal-apu-estructura')?.closest('.form-group');
 
   if (apuModalMode === 'view') {
     // 6.3 Consulta: Solo lectura
@@ -420,6 +445,7 @@ function applyApuModalMode() {
     nameInput.disabled = true;
     unitSelect.disabled = true;
     resourcePickerBox.style.display = 'none';
+    if (structureBox) structureBox.style.display = 'none';
     editModeBtn.style.display = 'inline-flex';
     saveBtn.style.display = 'none';
   } else if (apuModalMode === 'edit') {
@@ -429,6 +455,7 @@ function applyApuModalMode() {
     nameInput.disabled = false;
     unitSelect.disabled = false;
     resourcePickerBox.style.display = 'block';
+    if (structureBox) structureBox.style.display = 'block';
     editModeBtn.style.display = 'none';
     saveBtn.style.display = 'inline-flex';
     saveBtn.textContent = 'Guardar Cambios en APU';
@@ -439,6 +466,7 @@ function applyApuModalMode() {
     nameInput.disabled = false;
     unitSelect.disabled = false;
     resourcePickerBox.style.display = 'block';
+    if (structureBox) structureBox.style.display = 'block';
     editModeBtn.style.display = 'none';
     saveBtn.style.display = 'inline-flex';
     saveBtn.textContent = 'Crear APU';
@@ -557,6 +585,7 @@ function renderApuLinesTable() {
   if (unitDisplay) unitDisplay.textContent = `/ ${selectedUnit}`;
 
   let totalCostoDirecto = 0;
+  const estructura = document.getElementById('modal-apu-estructura')?.value || 'wbs';
 
   if (currentApuLines.length === 0) {
     tbody.innerHTML = `
@@ -566,59 +595,64 @@ function renderApuLinesTable() {
         </td>
       </tr>
     `;
-  } else {
+  } else if (estructura === 'wbs') {
+    // ------------------------------------------------------------------------
+    // MODO WBS / EDT: Agrupación jerárquica por categoría de insumo
+    // ------------------------------------------------------------------------
+    const categoryOrder = [
+      { key: 'Materiales', name: 'Materiales e Insumos', icon: '🧱' },
+      { key: 'Personal', name: 'Mano de Obra / Personal', icon: '👷' },
+      { key: 'Equipos', name: 'Equipos y Herramientas', icon: '🚜' },
+      { key: 'Otros', name: 'Otras Actividades / Insumos', icon: '📋' }
+    ];
+
+    const grouped = {};
+    categoryOrder.forEach(c => { grouped[c.key] = { ...c, items: [], subtotal: 0 }; });
+
     currentApuLines.forEach((line, index) => {
       totalCostoDirecto += line.subtotal;
-      const isMaterial = line.tipo === 'Materiales';
-      const isReadOnly = apuModalMode === 'view';
+      let catKey = 'Otros';
+      if (line.tipo === 'Materiales') catKey = 'Materiales';
+      else if (line.tipo === 'Personal' || line.tipo === 'Mano de Obra') catKey = 'Personal';
+      else if (line.tipo === 'Equipos' || line.tipo === 'Herramientas') catKey = 'Equipos';
 
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>
-          <div style="font-weight:600; color:var(--text-primary);">[${line.codigo}] ${line.nombre}</div>
-          <small style="color:var(--text-muted); font-size:0.75rem;">${line.tipo} • $${formatMoney(line.precioTotal)} / ${line.unidad}</small>
-        </td>
+      grouped[catKey].items.push({ line, index });
+      grouped[catKey].subtotal += line.subtotal;
+    });
 
-        <!-- Columna Cantidad (Cuántas a la vez) -->
-        <td style="width:110px;">
-          ${isReadOnly 
-            ? `<span style="font-family:var(--font-mono);">${line.cantidad}</span>`
-            : `<input type="number" class="filter-input" style="width:90px;" min="0.001" step="any" value="${line.cantidad}" onchange="updateApuLineValue(${index}, 'cantidad', this.value)">`
-          }
-        </td>
+    categoryOrder.forEach(cat => {
+      const group = grouped[cat.key];
+      if (group.items.length === 0) return;
 
-        <!-- Columna Rendimiento (Consumo por unidad de obra) -->
-        <td style="width:120px;">
-          ${isReadOnly 
-            ? `<span style="font-family:var(--font-mono);">${line.rendimiento}</span>`
-            : `<input type="number" class="filter-input" style="width:90px;" min="0.0001" step="any" value="${line.rendimiento}" onchange="updateApuLineValue(${index}, 'rendimiento', this.value)">`
-          }
+      // Fila de Encabezado de Categoría WBS con Subtotal
+      const catHeaderTr = document.createElement('tr');
+      catHeaderTr.className = 'wbs-cat-header-row';
+      catHeaderTr.innerHTML = `
+        <td colspan="4" style="padding:0.55rem 0.75rem; font-weight:700; color:var(--terracota-light); font-size:0.82rem; text-transform:uppercase; letter-spacing:0.5px;">
+          <span>${group.icon} ${group.name}</span>
+          <span style="font-size:0.72rem; font-weight:normal; opacity:0.8; margin-left:0.5rem;">(${group.items.length} recurso${group.items.length === 1 ? '' : 's'})</span>
         </td>
-
-        <!-- Columna Desperdicio % (Solo Materiales) -->
-        <td style="width:100px;">
-          ${!isMaterial 
-            ? `<span style="color:var(--text-muted); font-size:0.85rem;">—</span>`
-            : (isReadOnly 
-                ? `<span style="font-family:var(--font-mono);">${line.desperdicio}%</span>`
-                : `<div style="display:flex; align-items:center; gap:0.2rem;"><input type="number" class="filter-input" style="width:65px;" min="0" max="100" step="any" value="${line.desperdicio}" onchange="updateApuLineValue(${index}, 'desperdicio', this.value)"><span style="font-size:0.75rem; color:var(--text-muted);">%</span></div>`
-              )
-          }
+        <td style="font-family:var(--font-mono); font-weight:700; color:var(--terracota-light); font-size:0.88rem;">
+          $${formatMoney(group.subtotal)}
         </td>
-
-        <!-- Subtotal Calculado -->
-        <td style="font-family:var(--font-mono); font-weight:700; color:#fff; width:130px;">
-          $${formatMoney(line.subtotal)}
-        </td>
-
-        <!-- Quitar línea -->
-        <td style="width:50px; text-align:right;">
-          ${isReadOnly 
-            ? '' 
-            : `<button type="button" class="res-action-btn delete" onclick="removeApuLine(${index})" title="Quitar recurso de la receta">✕</button>`
-          }
-        </td>
+        <td></td>
       `;
+      tbody.appendChild(catHeaderTr);
+
+      // Filas de recursos pertenecientes a este componente WBS
+      group.items.forEach(({ line, index }) => {
+        const tr = createApuLineRow(line, index, 'wbs');
+        tbody.appendChild(tr);
+      });
+    });
+
+  } else {
+    // ------------------------------------------------------------------------
+    // MODO ÍTEMS DE ACTIVIDADES: Lista plana numerada consecutiva
+    // ------------------------------------------------------------------------
+    currentApuLines.forEach((line, index) => {
+      totalCostoDirecto += line.subtotal;
+      const tr = createApuLineRow(line, index, 'items');
       tbody.appendChild(tr);
     });
   }
@@ -626,6 +660,67 @@ function renderApuLinesTable() {
   if (totalDisplay) {
     totalDisplay.textContent = `$${formatMoney(totalCostoDirecto)}`;
   }
+}
+
+// Genera el elemento <tr> para una línea de recurso según estructura
+function createApuLineRow(line, index, estructura) {
+  const isMaterial = line.tipo === 'Materiales';
+  const isReadOnly = apuModalMode === 'view';
+  const tr = document.createElement('tr');
+
+  const itemBadge = estructura === 'items'
+    ? `<span class="badge-structure badge-items" style="font-size:0.68rem; padding:0.12rem 0.4rem; margin-right:0.35rem;">Ítem ${index + 1}</span>`
+    : '';
+
+  tr.innerHTML = `
+    <td>
+      <div style="font-weight:600; color:var(--text-primary); display:flex; align-items:center; flex-wrap:wrap; gap:0.25rem;">
+        ${itemBadge}<span>[${line.codigo}] ${line.nombre}</span>
+      </div>
+      <small style="color:var(--text-muted); font-size:0.75rem;">${line.tipo} • $${formatMoney(line.precioTotal)} / ${line.unidad}</small>
+    </td>
+
+    <!-- Columna Cantidad (Cuántas a la vez) -->
+    <td style="width:110px;">
+      ${isReadOnly 
+        ? `<span style="font-family:var(--font-mono);">${line.cantidad}</span>`
+        : `<input type="number" class="filter-input" style="width:90px;" min="0.001" step="any" value="${line.cantidad}" onchange="updateApuLineValue(${index}, 'cantidad', this.value)">`
+      }
+    </td>
+
+    <!-- Columna Rendimiento (Consumo por unidad de obra) -->
+    <td style="width:120px;">
+      ${isReadOnly 
+        ? `<span style="font-family:var(--font-mono);">${line.rendimiento}</span>`
+        : `<input type="number" class="filter-input" style="width:90px;" min="0.0001" step="any" value="${line.rendimiento}" onchange="updateApuLineValue(${index}, 'rendimiento', this.value)">`
+      }
+    </td>
+
+    <!-- Columna Desperdicio % (Solo Materiales) -->
+    <td style="width:100px;">
+      ${!isMaterial 
+        ? `<span style="color:var(--text-muted); font-size:0.85rem;">—</span>`
+        : (isReadOnly 
+            ? `<span style="font-family:var(--font-mono);">${line.desperdicio}%</span>`
+            : `<div style="display:flex; align-items:center; gap:0.2rem;"><input type="number" class="filter-input" style="width:65px;" min="0" max="100" step="any" value="${line.desperdicio}" onchange="updateApuLineValue(${index}, 'desperdicio', this.value)"><span style="font-size:0.75rem; color:var(--text-muted);">%</span></div>`
+          )
+      }
+    </td>
+
+    <!-- Subtotal Calculado -->
+    <td style="font-family:var(--font-mono); font-weight:700; color:#fff; width:130px;">
+      $${formatMoney(line.subtotal)}
+    </td>
+
+    <!-- Quitar línea -->
+    <td style="width:50px; text-align:right;">
+      ${isReadOnly 
+        ? '' 
+        : `<button type="button" class="res-action-btn delete" onclick="removeApuLine(${index})" title="Quitar recurso de la receta">✕</button>`
+      }
+    </td>
+  `;
+  return tr;
 }
 
 // ----------------------------------------------------------------------------
@@ -656,11 +751,13 @@ async function handleSaveApuSubmit(e) {
 
   const user = JSON.parse(localStorage.getItem('contrusoft_current_user') || '{}');
   const companyId = user.company ? user.company.id : 1;
+  const estructura = document.getElementById('modal-apu-estructura')?.value || 'wbs';
 
   const payload = {
     companyId,
     nombre,
     unidad,
+    estructura,
     lines: currentApuLines
   };
 

@@ -1306,6 +1306,89 @@ body {
 }
 
 /* ==========================================================================
+   ESTRUCTURA DEL APU (WBS/EDT vs ÍTEMS DE ACTIVIDADES) & AIU INDEPENDIENTE
+   ========================================================================== */
+.structure-selection-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .structure-selection-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.structure-card-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-sans);
+  color: inherit;
+  background: var(--bg-card);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.structure-card-option:hover {
+  border-color: rgba(217, 107, 67, 0.4);
+  background: var(--bg-card-hover);
+}
+
+.structure-card-option.selected {
+  border-color: var(--terracota);
+  background: var(--terracota-subtle);
+  box-shadow: 0 0 0 1px var(--terracota);
+}
+
+.badge-structure {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-wbs {
+  background: rgba(217, 107, 67, 0.15);
+  color: var(--terracota-light);
+  border: 1px solid rgba(217, 107, 67, 0.3);
+}
+
+.badge-items {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.badge-project-aiu {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  background: rgba(217, 107, 67, 0.12);
+  color: var(--terracota-light);
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  border: 1px solid rgba(217, 107, 67, 0.25);
+}
+
+.wbs-cat-header-row td {
+  background: rgba(217, 107, 67, 0.08) !important;
+  border-top: 1px solid rgba(217, 107, 67, 0.25) !important;
+  border-bottom: 1px solid rgba(217, 107, 67, 0.15) !important;
+  font-size: 0.82rem;
+}
+
+/* ==========================================================================
    MÓDULOS 7 Y 8: PRESUPUESTOS (VISTA MAESTRA & MESA DE TRABAJO WBS)
    ========================================================================== */
 

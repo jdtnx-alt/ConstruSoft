@@ -130,7 +130,7 @@ function applyBudgetsFilters() {
   if (filtered.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="9" style="text-align:center; padding:3rem 1rem; color:var(--text-muted);">
+        <td colspan="10" style="text-align:center; padding:3rem 1rem; color:var(--text-muted);">
           No se encontraron proyectos con los criterios de búsqueda seleccionados.
         </td>
       </tr>
@@ -147,6 +147,8 @@ function applyBudgetsFilters() {
     const fechaMod = b.fechaUltimaModificacion ? b.fechaUltimaModificacion.substring(0, 16) : '—';
 
     const canDelete = b.estado === 'Abierto';
+    const aiuTotal = ((b.aiuAdmin || 0) + (b.aiuImprevistos || 0) + (b.aiuUtilidad || 0)).toFixed(1);
+    const aiuCell = `<td style="text-align:center;"><span class="badge-project-aiu" title="A:${b.aiuAdmin || 0}% I:${b.aiuImprevistos || 0}% U:${b.aiuUtilidad || 0}%">${aiuTotal}%</span></td>`;
 
     return `
       <tr>
@@ -165,6 +167,7 @@ function applyBudgetsFilters() {
         <td>
           <span class="status-badge ${badgeClass}">${b.estado}</span>
         </td>
+        ${aiuCell}
         <td style="text-align:right; font-family:var(--font-mono); font-weight:700; color:var(--text-primary);">
           ${formatCurrency(b.valorTotal)}
         </td>
@@ -286,6 +289,18 @@ function setupPresupuestosMasterEvents() {
 // 7.1 MODAL DE CREACIÓN DE PRESUPUESTO
 // ============================================================================
 
+// Actualizar previsualización del AIU del nuevo proyecto
+function updateNewBudgetAiuPreview() {
+  const admin = parseFloat(document.getElementById('pres-new-aiu-admin')?.value) || 0;
+  const imp = parseFloat(document.getElementById('pres-new-aiu-imp')?.value) || 0;
+  const util = parseFloat(document.getElementById('pres-new-aiu-util')?.value) || 0;
+  const total = (admin + imp + util).toFixed(1);
+  const pill = document.getElementById('pres-new-aiu-total-pill');
+  if (pill) {
+    pill.textContent = `Total AIU: ${total}% (A:${admin}% I:${imp}% U:${util}%)`;
+  }
+}
+
 function openCreatePresupuestoModal() {
   const modal = document.getElementById('presupuesto-create-popout-modal');
   const alertBox = document.getElementById('modal-presupuesto-alert');
@@ -301,6 +316,21 @@ function openCreatePresupuestoModal() {
   const nextNum = (cachedBudgetsList.length + 1).toString().padStart(3, '0');
   const inputCodigo = document.getElementById('pres-new-codigo');
   if (inputCodigo) inputCodigo.value = `PRE-${year}-${nextNum}`;
+
+  // Precargar AIU por defecto y vincular listeners
+  const adminInput = document.getElementById('pres-new-aiu-admin');
+  const impInput = document.getElementById('pres-new-aiu-imp');
+  const utilInput = document.getElementById('pres-new-aiu-util');
+  if (adminInput && !adminInput.value) adminInput.value = '10';
+  if (impInput && !impInput.value) impInput.value = '3';
+  if (utilInput && !utilInput.value) utilInput.value = '7';
+  [adminInput, impInput, utilInput].forEach(inp => {
+    if (inp && !inp._hasAiuListener) {
+      inp.addEventListener('input', updateNewBudgetAiuPreview);
+      inp._hasAiuListener = true;
+    }
+  });
+  updateNewBudgetAiuPreview();
 
   if (modal) modal.style.display = 'flex';
 }
@@ -319,6 +349,10 @@ async function handleCreateBudgetSubmit(e) {
   const nombre = document.getElementById('pres-new-nombre').value.trim();
   const ubicacion = document.getElementById('pres-new-ubicacion').value.trim();
   const moneda = 'COP';
+
+  const aiuAdmin = parseFloat(document.getElementById('pres-new-aiu-admin')?.value) || 0;
+  const aiuImp = parseFloat(document.getElementById('pres-new-aiu-imp')?.value) || 0;
+  const aiuUtil = parseFloat(document.getElementById('pres-new-aiu-util')?.value) || 0;
 
   if (!codigo || !nombre || !ubicacion) {
     if (alertBox) {
@@ -343,7 +377,10 @@ async function handleCreateBudgetSubmit(e) {
         codigo,
         nombre,
         ubicacion,
-        moneda
+        moneda,
+        aiuAdmin,
+        aiuImprevistos: aiuImp,
+        aiuUtilidad: aiuUtil
       })
     });
 
@@ -367,7 +404,7 @@ async function handleCreateBudgetSubmit(e) {
     }
 
     // Redirige de inmediato a la mesa de trabajo (7.1)
-    const newBudget = data.data.budget;
+    const newBudget = (data.data && data.data.budget) ? data.data.budget : (data.budget || data.data || {});
     openBudgetWorkspace(newBudget.id);
 
   } catch (err) {
@@ -454,6 +491,15 @@ function renderWorkspaceUI(detail) {
     badgeEl.classList.add('status-badge-abierto');
   }
   badgeEl.textContent = budget.estado;
+
+  // AIU Badge del Proyecto
+  const headAiu = document.getElementById('ws-head-aiu');
+  if (headAiu) {
+    const aiuTotal = ((budget.aiuAdmin || 0) + (budget.aiuImprevistos || 0) + (budget.aiuUtilidad || 0)).toFixed(1);
+    headAiu.textContent = `AIU: ${aiuTotal}%`;
+    headAiu.title = `Administración: ${budget.aiuAdmin || 0}% | Imprevistos: ${budget.aiuImprevistos || 0}% | Utilidad: ${budget.aiuUtilidad || 0}%`;
+    headAiu.style.display = 'inline-flex';
+  }
 
   // Control de cambio de estado
   const statusBox = document.getElementById('ws-status-control-box');

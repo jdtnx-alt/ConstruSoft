@@ -420,6 +420,7 @@
                   <th style="width: 130px;">Fecha Elaboración</th>
                   <th style="width: 130px;">Última Modificación</th>
                   <th style="width: 100px;">Estado</th>
+                  <th style="width: 125px; text-align:center;">AIU Proyecto</th>
                   <th style="width: 160px; text-align:right;">Valor Total</th>
                   <th style="width: 110px; text-align:right;">Acciones</th>
                 </tr>
@@ -438,12 +439,13 @@
           <!-- 8.1 Encabezado Estático -->
           <div class="ws-static-header">
             <div class="ws-header-top">
-              <div class="ws-header-left">
+              <div class="ws-header-left" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                 <button type="button" id="btn-ws-back-master" class="btn-outline" style="padding:0.45rem 0.85rem; font-size:0.8rem;">
                   &larr; Volver a la Lista
                 </button>
                 <span class="ws-code-pill" id="ws-head-code">PRE-XXXX</span>
                 <h2 class="ws-project-title" id="ws-head-name">Nombre del Proyecto</h2>
+                <span class="badge-project-aiu" id="ws-head-aiu" style="font-size:0.75rem; padding:0.25rem 0.65rem;" title="AIU independiente de este proyecto">AIU: 20.0%</span>
               </div>
 
               <!-- Control de Estado de la Obra -->
@@ -1089,6 +1091,45 @@
           </div>
         </div>
 
+        <!-- Selección de Estructura: WBS/EDT vs Ítems de Actividades -->
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+          <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Estructura de la Composición <span style="color:var(--terracota);">*</span></span>
+            <span style="font-size:0.72rem; color:var(--text-muted); font-weight:normal;">Seleccione el modelo organizativo</span>
+          </label>
+          
+          <div class="structure-selection-grid">
+            <!-- Opción 1: WBS / EDT -->
+            <button type="button" class="structure-card-option selected" id="opt-struct-wbs" onclick="selectApuStructure('wbs')" aria-pressed="true">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.35rem;">
+                <h4 style="margin:0; font-size:0.88rem; color:var(--text-primary); display:flex; align-items:center; gap:0.45rem;">
+                  <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--terracota);"></span>
+                  Estructura WBS / EDT
+                </h4>
+                <span class="badge-structure badge-wbs">Jerárquica</span>
+              </div>
+              <p style="margin:0; font-size:0.74rem; color:var(--text-secondary); line-height:1.35;">
+                Agrupa insumos en categorías estándar (Materiales, Mano de Obra, Equipos, Actividades) con subtotales e incidencias automáticas.
+              </p>
+            </button>
+
+            <!-- Opción 2: Ítems de Actividades -->
+            <button type="button" class="structure-card-option" id="opt-struct-items" onclick="selectApuStructure('items')" aria-pressed="false">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.35rem;">
+                <h4 style="margin:0; font-size:0.88rem; color:var(--text-primary); display:flex; align-items:center; gap:0.45rem;">
+                  <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#3b82f6;"></span>
+                  Ítems de Actividades
+                </h4>
+                <span class="badge-structure badge-items">Lista Directa</span>
+              </div>
+              <p style="margin:0; font-size:0.74rem; color:var(--text-secondary); line-height:1.35;">
+                Desglose consecutivo de partidas o insumos (Ítem 1.0, 2.0, 3.0...) en lista continua sin división obligatoria de categorías.
+              </p>
+            </button>
+          </div>
+          <input type="hidden" id="modal-apu-estructura" value="wbs">
+        </div>
+
         <!-- 6.2 Composición: Búsqueda y vinculación de recursos + Crear al vuelo -->
         <div id="apu-resource-picker-box" style="background:var(--bg-sidebar); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:1.1rem; margin-bottom:1.5rem;">
           <label class="form-label" style="margin-bottom:0.6rem; color:var(--text-primary); font-weight:700;">
@@ -1467,12 +1508,41 @@
         </div>
 
         <!-- Moneda (Heredada de la empresa, no seleccionable) -->
-        <div class="form-group" style="margin-bottom: 1.75rem;">
+        <div class="form-group" style="margin-bottom: 1.25rem;">
           <label class="form-label">Moneda</label>
           <input type="text" id="pres-new-moneda" class="form-input locked-field" value="COP - Peso Colombiano" readonly>
           <span style="font-size:0.72rem; color:var(--text-muted); margin-top:0.25rem; display:block;">
             Se hereda automáticamente de la configuración de la empresa. Dato fijo.
           </span>
+        </div>
+
+        <!-- A.I.U. Independiente del Proyecto -->
+        <div class="form-group" style="margin-bottom: 1.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 0.9rem 1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+            <label class="form-label" style="margin-bottom:0; font-weight:700; color:var(--text-primary); font-size:0.85rem;">
+              A.I.U. Independiente del Proyecto *
+            </label>
+            <span class="aiu-preview-pill" id="pres-new-aiu-total-pill" style="font-size:0.75rem; font-family:var(--font-mono); background:rgba(217,107,67,0.15); color:var(--terracota-light); padding:0.15rem 0.5rem; border-radius:4px; font-weight:700; border:1px solid rgba(217,107,67,0.25);">
+              Total AIU: 20.0%
+            </span>
+          </div>
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-bottom:0.75rem; line-height:1.4;">
+            Cada proyecto cuenta con su propia tasa de AIU independiente. Puede ajustarla libremente para esta obra:
+          </p>
+          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:0.65rem;">
+            <div>
+              <label class="form-label" for="pres-new-aiu-admin" style="font-size:0.72rem; color:var(--text-secondary);">Administración (A) %</label>
+              <input type="number" id="pres-new-aiu-admin" class="form-input" value="10" min="0" max="100" step="0.1" required style="font-size:0.85rem; padding:0.45rem 0.6rem;">
+            </div>
+            <div>
+              <label class="form-label" for="pres-new-aiu-imp" style="font-size:0.72rem; color:var(--text-secondary);">Imprevistos (I) %</label>
+              <input type="number" id="pres-new-aiu-imp" class="form-input" value="3" min="0" max="100" step="0.1" required style="font-size:0.85rem; padding:0.45rem 0.6rem;">
+            </div>
+            <div>
+              <label class="form-label" for="pres-new-aiu-util" style="font-size:0.72rem; color:var(--text-secondary);">Utilidad (U) %</label>
+              <input type="number" id="pres-new-aiu-util" class="form-input" value="7" min="0" max="100" step="0.1" required style="font-size:0.85rem; padding:0.45rem 0.6rem;">
+            </div>
+          </div>
         </div>
 
         <div class="popout-actions" style="margin-top:1.5rem; display:flex; justify-content:flex-end; gap:0.75rem;">

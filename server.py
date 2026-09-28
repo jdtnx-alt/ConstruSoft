@@ -110,6 +110,7 @@ def init_db():
             costo_directo REAL DEFAULT 0,
             activo INTEGER DEFAULT 1,
             version INTEGER DEFAULT 1,
+            estructura TEXT DEFAULT 'wbs',
             fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (company_id) REFERENCES companies (id)
         )
@@ -222,6 +223,11 @@ def init_db():
     """)
 
     # Migrar columnas existentes si la BD ya existía
+    cursor.execute("PRAGMA table_info(apus)")
+    acols = [r[1] for r in cursor.fetchall()]
+    if 'estructura' not in acols:
+        cursor.execute("ALTER TABLE apus ADD COLUMN estructura TEXT DEFAULT 'wbs'")
+
     cursor.execute("PRAGMA table_info(budgets)")
     bcols = [r[1] for r in cursor.fetchall()]
     if 'ubicacion' not in bcols:
@@ -1088,7 +1094,8 @@ class ConstruSoftHandler(http.server.SimpleHTTPRequestHandler):
             query = """
                 SELECT a.id, a.codigo, a.nombre, a.unidad, a.costo_directo, a.activo, a.version,
                        COUNT(DISTINCT ar.id) as num_recursos,
-                       COUNT(DISTINCT bi.budget_id) as num_presupuestos
+                       COUNT(DISTINCT bi.budget_id) as num_presupuestos,
+                       a.estructura
                 FROM apus a
                 LEFT JOIN apu_resources ar ON a.id = ar.apu_id
                 LEFT JOIN budget_items bi ON a.id = bi.apu_id
@@ -1114,7 +1121,8 @@ class ConstruSoftHandler(http.server.SimpleHTTPRequestHandler):
                     'activo': bool(r[5]),
                     'version': r[6],
                     'numRecursos': r[7],
-                    'numPresupuestos': r[8]
+                    'numPresupuestos': r[8],
+                    'estructura': r[9] or 'wbs'
                 })
 
             self.send_json({'success': True, 'apus': apus})
@@ -1129,7 +1137,7 @@ class ConstruSoftHandler(http.server.SimpleHTTPRequestHandler):
 
             # Cabecera del APU
             cursor.execute("""
-                SELECT a.id, a.codigo, a.nombre, a.unidad, a.costo_directo, a.activo, a.version
+                SELECT a.id, a.codigo, a.nombre, a.unidad, a.costo_directo, a.activo, a.version, a.estructura
                 FROM apus a
                 WHERE a.id = ?
             """, (apu_id,))
@@ -1188,6 +1196,7 @@ class ConstruSoftHandler(http.server.SimpleHTTPRequestHandler):
                 'costoDirecto': apu_row[4],
                 'activo': bool(apu_row[5]),
                 'version': apu_row[6],
+                'estructura': apu_row[7] or 'wbs',
                 'lines': lines,
                 'presupuestosAbiertos': presupuestos_abiertos,
                 'presupuestosActivos': presupuestos_activos,
@@ -1441,6 +1450,7 @@ class ConstruSoftHandler(http.server.SimpleHTTPRequestHandler):
             company_id = data.get('companyId', 1)
             nombre = data.get('nombre', '').strip()
             unidad = data.get('unidad', '').strip()
+            estructura = data.get('estructura', 'wbs').strip() or 'wbs'
             lines = data.get('lines', [])
 
             if not nombre:
@@ -1467,9 +1477,9 @@ class ConstruSoftHandler(http.server.SimpleHTTPRequestHandler):
             cursor = conn.cursor()
 
             cursor.execute("""
-                INSERT INTO apus (company_id, codigo, nombre, unidad, costo_directo, activo, version)
-                VALUES (?, ?, ?, ?, ?, 1, 1)
-            """, (company_id, codigo_auto, nombre, unidad, round(costo_directo_total, 2)))
+                INSERT INTO apus (company_id, codigo, nombre, unidad, costo_directo, activo, version, estructura)
+                VALUES (?, ?, ?, ?, ?, 1, 1, ?)
+            """, (company_id, codigo_auto, nombre, unidad, round(costo_directo_total, 2), estructura))
             new_apu_id = cursor.lastrowid
 
             for line in lines:
@@ -1496,7 +1506,8 @@ class ConstruSoftHandler(http.server.SimpleHTTPRequestHandler):
                     'unidad': unidad,
                     'costoDirecto': round(costo_directo_total, 2),
                     'activo': True,
-                    'version': 1
+                    'version': 1,
+                    'estructura': estructura
                 }
             })
             return
@@ -1975,11 +1986,19 @@ class ConstruSoftHandler(http.server.SimpleHTTPRequestHandler):
             cursor = conn.cursor()
 
             # El código del APU NO cambia nunca (6.4). Incrementa número interno de versión
-            cursor.execute("""
-                UPDATE apus
-                SET nombre = ?, unidad = ?, costo_directo = ?, version = version + 1
-                WHERE id = ?
-            """, (nombre, unidad, round(costo_directo_total, 2), apu_id))
+            estructura = data.get('estructura', None)
+            if estructura:
+                cursor.execute("""
+                    UPDATE apus
+                    SET nombre = ?, unidad = ?, costo_directo = ?, version = version + 1, estructura = ?
+                    WHERE id = ?
+                """, (nombre, unidad, round(costo_directo_total, 2), estructura, apu_id))
+            else:
+                cursor.execute("""
+                    UPDATE apus
+                    SET nombre = ?, unidad = ?, costo_directo = ?, version = version + 1
+                    WHERE id = ?
+                """, (nombre, unidad, round(costo_directo_total, 2), apu_id))
 
             # Reemplazar líneas de composición del APU
             cursor.execute("DELETE FROM apu_resources WHERE apu_id = ?", (apu_id,))
@@ -2655,6 +2674,7 @@ class ConstruSoftHandler(http.server.SimpleHTTPRequestHandler):
 if __name__ == '__main__':
     init_db()
     print(f"Base de datos SQLite inicializada en: {DB_FILE}")
+    socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(("", PORT), ConstruSoftHandler) as httpd:
         print(f"Servidor ConstruSoft activo en http://localhost:{PORT}")
         httpd.serve_forever()
